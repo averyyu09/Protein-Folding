@@ -26,12 +26,12 @@ best_energies = []
 num_sweeps = 10000
 num_steps = 30
 beta_steps = np.geomspace(0.1, 10, num_steps)
-
+#stairs
 step_size = int(np.ceil(num_sweeps / num_steps))
 beta = np.repeat(beta_steps, step_size)
 beta = beta[:num_sweeps]
 
-for sweep in range(num_sweeps):
+for i in range(num_sweeps):
 
     while True:
 
@@ -52,7 +52,7 @@ for sweep in range(num_sweeps):
         coordinates = coords_new
         E = E_new
 
-    elif np.random.rand() < np.exp(-beta[sweep] * deltaE):
+    elif np.random.rand() < np.exp(-beta[i] * deltaE):
 
         d = d_new
         coordinates = coords_new

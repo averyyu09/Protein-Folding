@@ -25,14 +25,12 @@ best_energies = []
 which_sweeps = []
 uniquefold_energies =[]
 
+#edit these
 num_sweeps = 10000
-
-beta_start = 0.1
-beta_end = 7
 num_steps = 30
-
+beta_steps = np.linspace(0.1, 10, num_steps)
+#stairs
 step_size = int(np.ceil(num_sweeps / num_steps))
-beta_steps = np.linspace(beta_start, beta_end, num_steps)
 beta = np.repeat(beta_steps, step_size)
 beta = beta[:num_sweeps]
 
