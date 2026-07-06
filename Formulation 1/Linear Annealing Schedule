@@ -1,0 +1,94 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+from Functions import ( laydowncoordinates, compute_A,energy, propose_move, valid_fold, plot_results, plot_energy_uniquefolds,plot_uniquefolds_incontext)
+
+H = 1
+P = 0
+
+Gamma = [P, P, H, P, H, P, P, P, P, H, P, H, H, P, H, P]
+
+N = len(Gamma)
+
+d = np.zeros(N - 1, dtype=int)
+coordinates = laydowncoordinates(d)
+
+A = compute_A(Gamma)
+E = energy(coordinates, Gamma, A, H)
+
+best_E = E
+energies = []
+best_coordinates = coordinates.copy()
+best_d = d.copy()
+best_energies = []
+#folds graph
+which_sweeps = []
+uniquefold_energies =[]
+
+num_sweeps = 10000
+
+beta = np.linspace(0.1, 10, num_sweeps)
+
+#initializing the folds graph variables
+visited_folds = set()
+visited_folds.add(tuple(d))
+uniquefold_energies.append(E)
+which_sweeps.append(0)
+
+for i in range(num_sweeps):
+
+    while True:
+
+        d_new = propose_move(d)
+        coords_new = laydowncoordinates(d_new)
+
+        if valid_fold(coords_new):
+            break
+
+    E_new = energy(coords_new, Gamma, A, H)
+
+    deltaE = E_new - E
+
+    if deltaE <= 0:
+
+        d = d_new
+        coordinates = coords_new
+        E = E_new
+
+        fold = tuple(d)
+
+        if fold not in visited_folds:
+            visited_folds.add(fold)
+            uniquefold_energies.append(E)
+            which_sweeps.append(i+1)
+
+    elif np.random.rand() < np.exp(-deltaE * beta[i]):
+
+        d = d_new
+        coordinates = coords_new
+        E = E_new
+
+        fold = tuple(d)
+
+        if fold not in visited_folds:
+            visited_folds.add(fold)
+            uniquefold_energies.append(E)
+            which_sweeps.append(i+1)
+
+    energies.append(E)
+
+    if E < best_E:
+
+        best_E = E
+        best_coordinates = coordinates.copy()
+        best_d = d.copy()
+
+    best_energies.append(best_E)
+
+
+
+
+print("Best energy:", best_E)
+plot_results(energies, best_energies, coordinates,best_coordinates,Gamma,H,best_E,)
+plot_energy_uniquefolds(uniquefold_energies)
+plot_uniquefolds_incontext(which_sweeps,uniquefold_energies)

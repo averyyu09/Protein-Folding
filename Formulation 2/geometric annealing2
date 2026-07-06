@@ -1,0 +1,135 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+from Functions import (energywithpenalties, plot_results)
+
+H = -1
+P = 0
+
+Gamma = [P, P, H, P, H, P, P, P, P, H, P, H, H, P, H, P]
+N = len(Gamma)
+coordinates = np.random.randint(0, N, size=(N, 2))
+#print(coordinates)
+
+E_hp = 0
+E_bond = 0
+E_overlap = 0
+E = 0
+N = len(Gamma)
+
+E = energywithpenalties(Gamma, coordinates)
+best_energy = E
+best_coordinates = coordinates.copy()
+
+energies = [E]
+best_energies = [best_energy]
+
+def propose_move(coordinates):
+
+    new = coordinates.copy()
+
+    i = np.random.randint(len(new))
+
+    x, y = new[i]
+
+    valid_moves = []
+
+    if x < N-1:
+        valid_moves.append((1,0))
+
+    if x > 0:
+        valid_moves.append((-1,0))
+
+    if y < N-1:
+        valid_moves.append((0,1))
+
+    if y > 0:
+        valid_moves.append((0,-1))
+
+    dx, dy = valid_moves[np.random.randint(len(valid_moves))]
+
+    new[i,0] += dx
+    new[i,1] += dy
+
+    return new
+beta = 0.01
+beta_final = 10
+
+alpha = (beta_final/beta)**(1/(100000-1))
+
+while beta < beta_final:
+
+    new_coordinates = propose_move(coordinates)
+
+    E_new = energywithpenalties(Gamma,new_coordinates)
+
+    deltaE = E_new-E
+
+    if deltaE <= 0 or np.random.rand() < np.exp(-beta*deltaE):
+
+        coordinates = new_coordinates
+        E = E_new
+
+        if E < best_energy:
+            best_energy = E
+            best_coordinates = coordinates.copy()
+    energies.append(E)
+    best_energies.append(best_energy)
+
+    beta *= alpha
+
+
+
+plot_results(energies, best_energies, coordinates, best_coordinates, Gamma, H, best_energy,)
+print("Best energy:", best_energy)
+print(best_coordinates)
+
+burn_in = int(0.07 * len(energies))
+
+plt.figure(figsize=(8, 5))
+plt.plot(range(burn_in, len(energies)), energies[burn_in:])
+plt.xlabel("Iteration")
+plt.ylabel("Energy")
+plt.title("Simulated Annealing (After Burn-in)")
+plt.grid(True)
+plt.show()
+
+
+# #self-avoiding walk
+
+# for i in range(N):
+#     for j in range(i+1,N):
+
+#         if np.array_equal(coordinates[i], coordinates[j]):
+#             E_overlap += 1
+
+
+# #consecutive amino acids should be adjacent
+# for i in range(len(coordinates)-1):
+
+#     x1, y1 = coordinates[i]
+#     x2, y2 = coordinates[i+1]
+
+#     d = abs(x1-x2) + abs(y1-y2)
+
+#     E_bond += (d-1)**2
+
+
+# for i in range(N):
+#     for j in range(i+1, N):
+
+#         xi, yi = coordinates[i]
+#         xj, yj = coordinates[j]
+
+#         # Are they neighboring lattice sites?
+#         if abs(xi-xj) + abs(yi-yj) == 1:
+
+#             E_hp -= Gamma[i] * Gamma[j]
+
+# lambda_overlap = 100
+# lambda_bond = 100
+
+# E = E_hp  +  lambda_overlap*E_overlap  +  lambda_bond*E_bond
+
+
+

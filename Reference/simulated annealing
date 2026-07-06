@@ -1,0 +1,166 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+E = 0
+N = 15
+H = 0
+P = 1
+
+#start off with a straight line
+d = np.zeros(N-1, dtype=int)
+
+#how each amino acid gets moved
+def laydowncoordinates(d):
+    coordinates = [(0, 0)]
+
+    for move in d:
+        #get the last bead
+        x, y = coordinates[-1]
+
+        if move == 0:
+            coordinates.append((x-1, y))
+        elif move == 1:
+            coordinates.append((x+1, y))
+        elif move == 2:
+            coordinates.append((x, y+1))
+        elif move == 3:
+            coordinates.append((x, y-1))
+
+    return coordinates
+#turn the coordinates according to the changes
+coordinates = laydowncoordinates(d)
+
+
+# for doing it by hand
+# coordinates = [(0,0), (1,0), (1,1), (0,1), (-1,1), (-1,0), (-1,-1)]
+
+
+#input the sequence of proteins
+Gamma = [H, H, P, P, H, H, P, H, H, H, P, P, P, P, P]
+
+#setting A to zero for each amino acid
+A = np.zeros(N, dtype=int)
+
+for i in range(N):
+    if i == 0:
+        A[i] = 1 - Gamma[i+1]
+    elif i == N-1:
+        A[i] = 1 - Gamma[i-1]
+    else:
+        A[i] = (1 - Gamma[i-1]) + (1 - Gamma[i+1])
+
+#checking if the ith amino acid is H
+def M(x, y, coordinates):
+    for i in range(N):
+        if coordinates[i] == (x, y) and Gamma[i] == H:
+            return 1
+    return 0
+
+#checking if the four amino acids around the amino acid is 0
+def Mhat(i, coordinates):
+    x, y = coordinates[i]
+    return (M(x-1, y, coordinates) +M(x+1, y, coordinates) +M(x, y-1, coordinates) +M(x, y+1, coordinates))
+
+
+#checking the self-avoiding walk, are all coordiantes unique?
+def valid_fold(coordinates):
+    return len(set(coordinates)) == len(coordinates)
+
+
+def propose_move(d):
+    d_new = d.copy()
+
+    i = np.random.randint(len(d))
+
+    current = d_new[i]
+
+    # choose a different direction
+    choices = [0, 1, 2, 3]
+    choices.remove(current)
+
+    d_new[i] = np.random.choice(choices)
+
+    return d_new
+
+coordinates = laydowncoordinates(d)
+
+def energy(coordinates):
+    E = 0
+    for i in range(N):
+        E += (1 - Gamma[i]) * (A[i] - Mhat(i, coordinates))
+    return E*0.5
+
+
+E = energy(coordinates)
+best_E = E
+best_energies = []
+
+T = 10
+alpha = 0.99995
+Tmin = 0.0001
+
+energies = []
+
+while T > Tmin:
+
+    d_new = propose_move(d)
+
+    coords_new = laydowncoordinates(d_new)
+
+    if not valid_fold(coords_new):
+        T *= alpha
+        continue
+
+    E_new = energy(coords_new)
+
+    deltaE = E_new - E
+
+    if deltaE <= 0:
+        d = d_new
+        coordinates = coords_new
+        E = E_new
+
+    elif np.random.rand() < np.exp(-deltaE / T):
+        d = d_new
+        coordinates = coords_new
+        E = E_new
+
+    energies.append(E)
+    if E < best_E:
+        best_E = E
+    best_energies.append(best_E)
+
+    T *= alpha
+
+
+# T= 10
+# beta = 1/T
+
+
+# def boltzmann():
+#     return np.exp(-beta*(energy(coordinates)))
+
+
+
+print(best_E)
+
+plt.figure(figsize=(8,5))
+plt.plot(best_energies)
+plt.xlabel("Iteration")
+plt.ylabel("Best Energy")
+plt.title("Best Energy vs Iteration")
+plt.grid(True)
+plt.show()
+
+plt.plot(energies)
+plt.xlabel("Iteration")
+plt.ylabel("Energy")
+plt.title("Simulated Annealing")
+plt.show()
+
+plt.figure(figsize=(8,5))
+plt.hist(energies, bins=20)
+plt.xlabel("Energy")
+plt.ylabel("Frequency")
+plt.title("Histogram of Sampled Energies")
+plt.show()

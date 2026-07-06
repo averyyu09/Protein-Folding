@@ -1,0 +1,195 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+E = 0
+H = 1
+P = 0
+#input the sequence of proteins
+Gamma = [P, P, H, P, H, P, P, P, P, H, P, H, H, P, H, P]
+N = len(Gamma)
+#start off with a straight line
+# an array that stores the directions the protein sequence is laid down in
+d = np.zeros(N-1, dtype=int)
+
+print(d)
+
+#how each amino acid gets moved
+def laydowncoordinates(d):
+    coordinates = [(0, 0)]
+
+    for move in d:
+        #get the last bead
+        x, y = coordinates[-1]
+
+        if move == 0:
+            coordinates.append((x-1, y))
+        elif move == 1:
+            coordinates.append((x+1, y))
+        elif move == 2:
+            coordinates.append((x, y+1))
+        elif move == 3:
+            coordinates.append((x, y-1))
+
+    return coordinates
+#turn the coordinates according to the changes--- first fold
+coordinates = laydowncoordinates(d)
+
+
+# for doing it by hand
+# coordinates = [(0,0), (1,0), (1,1), (0,1), (-1,1), (-1,0), (-1,-1)]
+
+
+#setting A to zero for each amino acid
+def A():
+    A = np.zeros(N, dtype=int)
+
+    for i in range(N):
+        if i == 0:
+            A[i] = Gamma[i+1]
+        elif i == N-1:
+            A[i] = Gamma[i-1]
+        else:
+            A[i] = Gamma[i-1] + Gamma[i+1]
+
+#checking if the ith amino acid is H
+def M(x, y, coordinates):
+    for i in range(N):
+        if coordinates[i] == (x, y) and Gamma[i] == H:
+            return 1
+    return 0
+
+#checking if the four amino acids around the amino acid is 0
+def Mhat(i, coordinates):
+    x, y = coordinates[i]
+    return (M(x-1, y, coordinates) +M(x+1, y, coordinates) +M(x, y-1, coordinates) +M(x, y+1, coordinates))
+
+
+#checking the self-avoiding walk, are all coordiantes unique?
+def valid_fold(coordinates):
+    return len(set(coordinates)) == len(coordinates)
+
+
+def propose_move(d):
+    d_new = d.copy()
+
+    i = np.random.randint(len(d))
+
+    current = d_new[i]
+
+    # choose a different direction
+    choices = [0, 1, 2, 3]
+    choices.remove(current)
+
+    d_new[i] = np.random.choice(choices)
+
+    return d_new
+
+coordinates = laydowncoordinates(d)
+
+def energy(coordinates):
+    E = 0
+    for i in range(N):
+        E += Gamma[i] * (A[i] - Mhat(i, coordinates))
+    return E*0.5
+
+
+E = energy(coordinates)
+best_E = E
+best_energies = []
+best_coordinates = coordinates.copy()
+best_d = d.copy()
+
+#Linear annealing schedule
+def linearannealing():
+    num_sweeps=10000
+    beta = np.linspace(0.1, 5, num_sweeps)
+    # alpha = 0.99995
+    # Tmin = 0.0001
+
+    energies = []
+    #attempts = 0
+
+    for i in range(0, num_sweeps):
+        
+        while True:
+            #attempts += 1
+            d_new = propose_move(d)
+            coords_new = laydowncoordinates(d_new)
+
+            if valid_fold(coords_new):
+                break
+
+        #print(attempts)
+
+        E_new = energy(coords_new)
+
+        deltaE = E_new - E
+
+        if deltaE <= 0:
+            d = d_new
+            coordinates = coords_new
+            E = E_new
+
+        elif np.random.rand() < np.exp(-deltaE*beta[i]):
+            d = d_new
+            coordinates = coords_new
+            E = E_new
+
+        energies.append(E)
+        if E < best_E:
+            best_E = E
+            best_coordinates = coordinates.copy()
+            best_d = d.copy()
+        best_energies.append(best_E)
+
+
+#geometric annealing
+def geometricannealing():
+    num_sweeps = 10000
+    beta = 0.5
+    beta_final = 1000
+    alpha = (beta_final / beta)**(1/(num_sweeps-1))
+
+    energies = []
+    for sweep in range(num_sweeps):
+
+        while True:
+            d_new = propose_move(d)
+            coords_new = laydowncoordinates(d_new)
+
+            if valid_fold(coords_new):
+                break
+
+        E_new = energy(coords_new)
+
+        deltaE = E_new - E
+
+        if deltaE <= 0:
+            d = d_new
+            coordinates = coords_new
+            E = E_new
+
+        elif np.random.rand() < np.exp(-beta * deltaE):
+            d = d_new
+            coordinates = coords_new
+            E = E_new
+
+        energies.append(E)
+        if E < best_E:
+            best_E = E
+            best_coordinates = coordinates.copy()
+            best_d = d.copy()
+
+        best_energies.append(best_E)
+
+        beta *= alpha
+
+# T= 10
+# beta = 1/T
+
+
+# def boltzmann():
+#     return np.exp(-beta*(energy(coordinates)))
+
+
+

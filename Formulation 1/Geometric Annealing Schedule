@@ -1,0 +1,76 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+from Functions import ( laydowncoordinates, compute_A,energy, propose_move, valid_fold, plot_results)
+
+H = 1
+P = 0
+Gamma = [P, P, H, P, H, P, P, P, P, H, P, H, H, P, H, P]
+N = len(Gamma)
+
+d = np.zeros(N - 1, dtype=int)
+coordinates = laydowncoordinates(d)
+
+A = compute_A(Gamma)
+E = energy(coordinates, Gamma, A, H)
+
+
+best_E = E
+energies = []
+best_coordinates = coordinates.copy()
+best_d = d.copy()
+best_energies = []
+
+
+num_sweeps = 10000
+
+beta = 0.5
+beta_final = 10
+alpha = (beta_final / beta) ** (1 / (num_sweeps - 1))
+
+
+for sweep in range(num_sweeps):
+
+    while True:
+
+        d_new = propose_move(d)
+        coords_new = laydowncoordinates(d_new)
+
+        if valid_fold(coords_new):
+            break
+
+
+    E_new = energy(coords_new, Gamma, A, H)
+    deltaE = E_new - E
+
+#simulated annealing
+    if deltaE <= 0:
+
+        d = d_new
+        coordinates = coords_new
+        E = E_new
+
+    elif np.random.rand() < np.exp(-beta * deltaE):
+
+        d = d_new
+        coordinates = coords_new
+        E = E_new
+
+    energies.append(E)
+
+    if E < best_E:
+
+        best_E = E
+        best_coordinates = coordinates.copy()
+        best_d = d.copy()
+        
+    best_energies.append(best_E)
+
+    beta *= alpha
+
+
+
+
+
+print("Best energy:", best_E)
+plot_results(energies, best_energies, coordinates,best_coordinates,Gamma,H,best_E,)

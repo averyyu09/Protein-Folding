@@ -1,0 +1,101 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+from Functions import (energywithpenalties, plot_results)
+
+H = -1
+P = 0
+
+Gamma = [P, P, H, P, H, P, P, P, P, H, P, H, H, P, H, P]
+N = len(Gamma)
+coordinates = np.random.randint(0, N, size=(N, 2))
+#print(coordinates)
+
+E_hp = 0
+E_bond = 0
+E_overlap = 0
+E = 0
+N = len(Gamma)
+
+E = energywithpenalties(Gamma, coordinates)
+best_energy = E
+best_coordinates = coordinates.copy()
+
+energies = [E]
+best_energies = [best_energy]
+
+def propose_move(coordinates):
+
+    new = coordinates.copy()
+
+    i = np.random.randint(len(new))
+
+    x, y = new[i]
+
+    valid_moves = []
+
+    if x < N-1:
+        valid_moves.append((1,0))
+
+    if x > 0:
+        valid_moves.append((-1,0))
+
+    if y < N-1:
+        valid_moves.append((0,1))
+
+    if y > 0:
+        valid_moves.append((0,-1))
+
+    dx, dy = valid_moves[np.random.randint(len(valid_moves))]
+
+    new[i,0] += dx
+    new[i,1] += dy
+
+    return new
+num_sweeps = 10000
+
+beta_start = 0.01
+beta_final = 10
+num_steps = 30
+step_size = int(np.ceil(num_sweeps / num_steps))
+alpha = (beta_final / beta_start) ** (1 / (num_steps - 1))
+beta_steps = beta_start * alpha ** np.arange(num_steps)
+beta = np.repeat(beta_steps, step_size)
+beta = beta[:num_sweeps]
+
+for i in range(num_sweeps):
+
+    new_coordinates = propose_move(coordinates)
+
+    E_new = energywithpenalties(Gamma,new_coordinates)
+
+    deltaE = E_new-E
+
+    if deltaE <= 0 or np.random.rand() < np.exp(-beta[i]*deltaE):
+
+        coordinates = new_coordinates
+        E = E_new
+
+        if E < best_energy:
+            best_energy = E
+            best_coordinates = coordinates.copy()
+    energies.append(E)
+    best_energies.append(best_energy)
+
+
+
+
+plot_results(energies, best_energies, coordinates, best_coordinates, Gamma, H, best_energy,)
+print("Best energy:", best_energy)
+print(best_coordinates)
+
+burn_in = int(0.05 * len(energies))
+
+plt.figure(figsize=(8, 5))
+plt.plot(range(burn_in, len(energies)), energies[burn_in:])
+plt.xlabel("Iteration")
+plt.ylabel("Energy")
+plt.title("Simulated Annealing (After Burn-in)")
+plt.grid(True)
+plt.show()
+
