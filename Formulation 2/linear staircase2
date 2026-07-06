@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Functions import (energywithpenalties, plot_results)
+from Functions2 import (energywithpenalties, plot_results, propose_move2)
 
 H = -1
 P = 0
@@ -26,46 +26,18 @@ best_coordinates = coordinates.copy()
 energies = [E]
 best_energies = [best_energy]
 
-def propose_move(coordinates):
-
-    new = coordinates.copy()
-
-    i = np.random.randint(len(new))
-
-    x, y = new[i]
-
-    valid_moves = []
-
-    if x < N-1:
-        valid_moves.append((1,0))
-
-    if x > 0:
-        valid_moves.append((-1,0))
-
-    if y < N-1:
-        valid_moves.append((0,1))
-
-    if y > 0:
-        valid_moves.append((0,-1))
-
-    dx, dy = valid_moves[np.random.randint(len(valid_moves))]
-
-    new[i,0] += dx
-    new[i,1] += dy
-
-    return new
-
+#edit these
 num_sweeps = 100000
 num_steps = 30
+beta_steps = np.linspace(0.1, 10, num_steps)
 
 step_size = int(np.ceil(num_sweeps / num_steps))
-
-beta_steps = np.linspace(0.1, 10, num_steps)
 beta = np.repeat(beta_steps, step_size)
 beta = beta[:num_sweeps]
+
 for i in range(num_sweeps):
 
-    new_coordinates = propose_move(coordinates)
+    new_coordinates = propose_move2(coordinates,N)
 
     E_new = energywithpenalties(Gamma,new_coordinates)
 

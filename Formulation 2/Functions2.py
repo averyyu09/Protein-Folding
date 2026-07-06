@@ -176,6 +176,35 @@ def plot_energy_uniquefolds(uniquefold_energies):
     plt.grid(True)
     plt.show()
 
+def propose_move2(coordinates,N):
+
+    new = coordinates.copy()
+
+    i = np.random.randint(len(new))
+
+    x, y = new[i]
+
+    valid_moves = []
+
+    if x < N-1:
+        valid_moves.append((1,0))
+
+    if x > 0:
+        valid_moves.append((-1,0))
+
+    if y < N-1:
+        valid_moves.append((0,1))
+
+    if y > 0:
+        valid_moves.append((0,-1))
+
+    dx, dy = valid_moves[np.random.randint(len(valid_moves))]
+
+    new[i,0] += dx
+    new[i,1] += dy
+
+    return new
+
 
 def energywithpenalties(Gamma, coordinates):
 

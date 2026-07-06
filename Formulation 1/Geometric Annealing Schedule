@@ -66,6 +66,5 @@ for i in range(num_sweeps):
 
 
 
-
 print("Best energy:", best_E)
 plot_results(energies, best_energies, coordinates,best_coordinates,Gamma,H,best_E,)

@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Functions import (energywithpenalties, plot_results)
+from Functions2 import (energywithpenalties, plot_results,propose_move2)
 
 H = -1
 P = 0
@@ -24,41 +24,14 @@ best_coordinates = coordinates.copy()
 energies = [E]
 best_energies = [best_energy]
 
-def propose_move(coordinates):
-#choose a random tuple
-    coordinates = coordinates.copy()
-    i = np.random.randint(len(coordinates))
-    x, y = coordinates[i]
-
-    valid_moves = []
-
-#restrict possible moves
-    if x < N-1:
-        valid_moves.append((1,0))
-    if x > 0:
-        valid_moves.append((-1,0))
-    if y < N-1:
-        valid_moves.append((0,1))
-    if y > 0:
-        valid_moves.append((0,-1))
-
-#move anywhere in the grid
-    dx, dy = valid_moves[np.random.randint(len(valid_moves))]
-#move x coordinate
-    coordinates[i,0] += dx
-#move y coordinate
-    coordinates[i,1] += dy
-
-    return coordinates
-
-
+#edit these
 num_sweeps = 100000
 beta = np.linspace(0.1, 10, num_sweeps)
 
 
 for i in range(num_sweeps):
 
-    new_coordinates = propose_move(coordinates)
+    new_coordinates = propose_move2(coordinates,N)
     E_new = energywithpenalties(Gamma,new_coordinates)
 
     deltaE = E_new-E
