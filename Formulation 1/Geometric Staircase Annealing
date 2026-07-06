@@ -22,14 +22,12 @@ best_d = d.copy()
 best_energies = []
 
 
+#edit these
 num_sweeps = 10000
-
-beta_start = 0.1
-beta_final = 7
 num_steps = 30
+beta_steps = np.geomspace(0.1, 10, num_steps)
+
 step_size = int(np.ceil(num_sweeps / num_steps))
-alpha = (beta_final / beta_start) ** (1 / (num_steps - 1))
-beta_steps = beta_start * alpha ** np.arange(num_steps)
 beta = np.repeat(beta_steps, step_size)
 beta = beta[:num_sweeps]
 

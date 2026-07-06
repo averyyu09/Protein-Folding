@@ -25,8 +25,9 @@ best_energies = []
 which_sweeps = []
 uniquefold_energies =[]
 
-num_sweeps = 10000
 
+#edit these
+num_sweeps = 10000
 beta = np.linspace(0.1, 10, num_sweeps)
 
 #initializing the folds graph variables

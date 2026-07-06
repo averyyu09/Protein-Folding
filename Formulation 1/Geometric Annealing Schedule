@@ -21,9 +21,8 @@ best_coordinates = coordinates.copy()
 best_d = d.copy()
 best_energies = []
 
-
+#edit these
 num_sweeps = 10000
-
 beta = np.geomspace(0.5, 10, num_sweeps)
 
 
