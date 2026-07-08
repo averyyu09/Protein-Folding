@@ -1,0 +1,105 @@
+#need to rewrite
+
+from itertools import product
+import numpy as np
+import matplotlib.pyplot as plt
+from Functions import(compute_A, laydowncoordinates, valid_fold, energy)
+H = 1
+P = 0
+
+Gamma = [H, P, H, H, P]
+A = compute_A(Gamma)
+
+all_energies = []
+all_folds = []
+
+best_E = np.inf
+best_fold = None
+best_coords = None
+
+for d in product(range(4), repeat=len(Gamma)-1):
+
+    coords = laydowncoordinates(d)
+
+    if not valid_fold(coords):
+        continue
+
+    E = energy(coords, Gamma, A, H)
+
+    all_energies.append(E)
+    all_folds.append(d)
+
+    if E < best_E:
+        best_E = E
+        best_fold = d
+        best_coords = coords
+
+plt.figure(figsize=(10,4))
+plt.plot(all_energies, '.-')
+plt.xlabel("Valid fold")
+plt.ylabel("Energy")
+plt.title("Energy Landscape")
+plt.grid(True)
+plt.show()
+
+print("Ground state energy:", best_E)
+print("Ground state fold:", best_fold)
+
+all_energies = []
+all_folds = []
+
+best_E = np.inf
+best_fold = None
+best_coords = None
+
+
+def gray_code_4(length):
+
+    if length == 0:
+        return [[]]
+
+    smaller = gray_code_4(length - 1)
+    result = []
+
+    for digit in range(4):
+
+        # Reverse every other block
+        if digit % 2 == 0:
+            block = smaller
+        else:
+            block = reversed(smaller)
+
+        for code in block:
+            result.append([digit] + code)
+
+    return result
+
+gray_codes = gray_code_4(len(Gamma)-1)
+
+for d in gray_codes:
+
+    coords = laydowncoordinates(d)
+
+    if not valid_fold(coords):
+        continue
+
+    E = energy(coords, Gamma, A, H)
+
+    all_energies.append(E)
+    all_folds.append(d)
+
+    if E < best_E:
+        best_E = E
+        best_fold = d
+        best_coords = coords
+
+plt.figure(figsize=(10,4))
+plt.plot(all_energies, '.-')
+plt.xlabel("Valid fold")
+plt.ylabel("Energy")
+plt.title("Gray-coded Energy Landscape")
+plt.grid(True)
+plt.show()
+
+print("Ground state energy:", best_E)
+print("Ground state fold:", best_fold)
