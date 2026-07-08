@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Functions import ( laydowncoordinates, compute_A,energy, propose_move, valid_fold, plot_results)
+from Functions import ( laydowncoordinates, compute_A,energy, propose_move, valid_fold, plot_results,plot_energy_uniquefolds,plot_uniquefolds_incontext)
 
 H = 1
 P = 0
@@ -21,6 +21,8 @@ best_coordinates = coordinates.copy()
 best_d = d.copy()
 best_energies = []
 
+which_sweeps = []
+uniquefold_energies =[]
 
 #edit these
 num_sweeps = 10000
@@ -30,6 +32,11 @@ beta_steps = np.geomspace(0.1, 10, num_steps)
 step_size = int(np.ceil(num_sweeps / num_steps))
 beta = np.repeat(beta_steps, step_size)
 beta = beta[:num_sweeps]
+
+visited_folds = set()
+visited_folds.add(tuple(d))
+uniquefold_energies.append(E)
+which_sweeps.append(0)
 
 for i in range(num_sweeps):
 
@@ -51,12 +58,26 @@ for i in range(num_sweeps):
         d = d_new
         coordinates = coords_new
         E = E_new
+        
+        fold = tuple(d)
+
+        if fold not in visited_folds:
+            visited_folds.add(fold)
+            uniquefold_energies.append(E)
+            which_sweeps.append(i+1)
 
     elif np.random.rand() < np.exp(-beta[i] * deltaE):
 
         d = d_new
         coordinates = coords_new
         E = E_new
+
+        fold = tuple(d)
+
+        if fold not in visited_folds:
+            visited_folds.add(fold)
+            uniquefold_energies.append(E)
+            which_sweeps.append(i+1)
 
     energies.append(E)
 
@@ -75,3 +96,5 @@ for i in range(num_sweeps):
 
 print("Best energy:", best_E)
 plot_results(energies, best_energies, coordinates,best_coordinates,Gamma,H,best_E,)
+plot_energy_uniquefolds(uniquefold_energies)
+plot_uniquefolds_incontext(which_sweeps,uniquefold_energies)
