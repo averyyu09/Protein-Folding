@@ -1,0 +1,135 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from Functions import ( laydowncoordinates, compute_A,energy, propose_move, valid_fold)
+
+num_sequences = 100
+H=1
+P=0
+
+sequence_success_probabilities = []
+
+for seq in range(num_sequences):
+
+    Gamma = np.random.randint(0, 2, size=8).tolist()
+
+    A = compute_A(Gamma)
+
+    # Run simulated annealing on this sequence
+
+    N = len(Gamma)
+    num_trials = 100
+    best_energies_all= []
+
+    for trial in range(num_trials):
+
+        while True:
+
+            d = np.random.randint(0, 4, size=N-1)
+            coordinates = laydowncoordinates(d)
+
+            if valid_fold(coordinates):
+                break
+
+        E = energy(coordinates, Gamma, A, H)
+
+        best_E = E
+        energies = []
+        best_coordinates = coordinates.copy()
+        best_d = d.copy()
+        best_energies = []
+
+
+        #edit these
+        num_sweeps = 10000
+        beta = np.linspace(0.1, 10, num_sweeps)
+
+        for i in range(num_sweeps):
+
+            while True:
+
+                d_new = propose_move(d)
+                coords_new = laydowncoordinates(d_new)
+
+                if valid_fold(coords_new):
+                    break
+
+            E_new = energy(coords_new, Gamma, A, H)
+
+            deltaE = E_new - E
+
+            if deltaE <= 0:
+
+                d = d_new
+                coordinates = coords_new
+                E = E_new
+
+            elif np.random.rand() < np.exp(-deltaE * beta[i]):
+
+                d = d_new
+                coordinates = coords_new
+                E = E_new
+
+            energies.append(E)
+
+            if E < best_E:
+
+                best_E = E
+                best_coordinates = coordinates.copy()
+                best_d = d.copy()
+
+            best_energies.append(best_E)
+        best_energies_all.append(best_E)
+
+
+    lowest_energy = min(best_energies_all)
+    successes = sum(E == lowest_energy for E in best_energies_all)
+    success_probability = successes / num_trials
+    sequence_success_probabilities.append(success_probability)
+
+    print(
+    f"Sequence {seq + 1}: "
+    f"lowest energy = {lowest_energy}, "
+    f"success probability = {success_probability:.2f}")
+
+    print("Lowest energy found:", lowest_energy)
+    print("Successes:", successes)
+    print("Success probability:", success_probability)
+    print(success_probability)
+
+
+
+
+
+average_success = np.mean(sequence_success_probabilities)
+
+print(average_success)
+plt.figure(figsize=(8,5))
+
+plt.plot(sequence_success_probabilities, 'o-')
+
+plt.xlabel("Sequence")
+plt.ylabel("Success Probability")
+plt.title("Success Probability for Each Random HP Sequence")
+
+plt.grid(True)
+
+plt.show()
+
+plt.figure(figsize=(8,5))
+
+plt.plot(sequence_success_probabilities, 'o-', label="Sequence")
+
+plt.axhline(
+    average_success,
+    linestyle="--",
+    label=f"Average = {average_success:.3f}"
+)
+
+plt.xlabel("Sequence")
+plt.ylabel("Success Probability")
+plt.title("Linear Annealing Success Probability")
+
+plt.legend()
+plt.grid(True)
+
+plt.show()
