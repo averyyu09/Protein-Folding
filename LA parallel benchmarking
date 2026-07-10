@@ -1,0 +1,154 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from Functions import ( laydowncoordinates, compute_A,energy, propose_move, valid_fold)
+
+num_sequences = 100
+H=1
+P=0
+
+def run_sequence(seq):
+
+
+    #generate random sequence
+    Gamma = np.random.randint(0, 2, size=20).tolist()
+    A = compute_A(Gamma)
+    N = len(Gamma)
+    num_trials = 100
+    best_energies_all= []
+
+    for trial in range(num_trials):
+        #generate random sequence d
+        while True:
+            d = np.random.randint(0, 4, size=N-1)
+            coordinates = laydowncoordinates(d)
+            if valid_fold(coordinates):
+                break
+        #initialize values for SA
+        E = energy(coordinates, Gamma, A, H)
+        best_E = E
+        energies = []
+        best_coordinates = coordinates.copy()
+        best_d = d.copy()
+        #parameters for SA
+        num_sweeps = 10000
+        beta = np.linspace(0.1, 10, num_sweeps)
+
+        for i in range(num_sweeps):
+            #new proposals
+            while True:
+                d_new = propose_move(d)
+                coords_new = laydowncoordinates(d_new)
+                if valid_fold(coords_new):
+                    break
+            #rule for accepting proposal
+            E_new = energy(coords_new, Gamma, A, H)
+            deltaE = E_new - E
+            if deltaE <= 0:
+                d = d_new
+                coordinates = coords_new
+                E = E_new
+            elif np.random.rand() < np.exp(-deltaE * beta[i]):
+                d = d_new
+                coordinates = coords_new
+                E = E_new
+            #after each MCS, calculate the energy
+            energies.append(E)
+            #find the best energies and corresponding folds
+            if E < best_E:
+                best_E = E
+                best_coordinates = coordinates.copy()
+                best_d = d.copy()
+        #best energy per trial to calculate the success prob
+        best_energies_all.append(best_E)
+
+    #per sequence, what is the amount of times we reach the lowest energy in the trial?
+    lowest_energy = min(best_energies_all)
+    successes = sum(E == lowest_energy for E in best_energies_all)
+    success_probability = successes / num_trials
+
+    print(
+    f"Sequence {seq + 1}: "
+    f"lowest energy = {lowest_energy}, "
+    f"success probability = {success_probability:.2f}")
+
+    print("Lowest energy found:", lowest_energy)
+    print("Successes:", successes)
+    print("Success probability:", success_probability)
+    print(success_probability)
+    return success_probability
+
+from multiprocessing import Pool
+import os
+
+if __name__ == "__main__":
+
+    with Pool(processes=os.cpu_count()-2) as pool:
+        sequence_success_probabilities = pool.map(
+            run_sequence,
+            range(num_sequences)
+        )
+
+    average_success = np.mean(sequence_success_probabilities)
+
+    print(average_success)
+
+    #on average, what was the probability that we reach the lowest energy across different sequences and trials
+    average_success = np.mean(sequence_success_probabilities)
+
+    print(average_success)
+    plt.figure(figsize=(8,5))
+    plt.plot(sequence_success_probabilities, 'o-')
+    plt.xlabel("Sequence")
+    plt.ylabel("Success Probability")
+    plt.title("Success Probability for Each Random HP Sequence")
+    plt.grid(True)
+    plt.show()
+
+    #box plot
+    plt.figure(figsize=(4,6))
+    plt.boxplot(sequence_success_probabilities)
+    plt.ylabel("Success Probability")
+    plt.title("Success Probability Across Random Sequences")
+    plt.show()
+
+
+    import numpy as np
+    import matplotlib.pyplot as plt
+    num_bootstrap = 10000
+    bootstrap_means = []
+
+    for _ in range(num_bootstrap):
+        sample = np.random.choice(
+            sequence_success_probabilities,
+            size=len(sequence_success_probabilities),
+            replace=True)
+
+        bootstrap_means.append(np.mean(sample))
+    #95%confidence interval
+    lower = np.percentile(bootstrap_means, 2.5)
+    upper = np.percentile(bootstrap_means, 97.5)
+
+    print(f"Average success probability = {average_success:.3f}")
+    print(f"95% Confidence Interval = [{lower:.3f}, {upper:.3f}]")
+
+    plt.figure(figsize=(8,5))
+    plt.hist(bootstrap_means, bins=30)
+
+    plt.axvline(average_success, linestyle="--", linewidth=2, label="Mean")
+    plt.axvline(lower, linestyle=":", linewidth=2, label="95% CI")
+    plt.axvline(upper, linestyle=":", linewidth=2)
+    plt.xlabel("Mean Success Probability")
+    plt.ylabel("Bootstrap Count")
+    plt.title("Bootstrap Distribution")
+    plt.legend()
+    plt.grid(True)
+
+    plt.show()
+
+    np.savez(
+        "linear_results.npz",
+        sequence_success_probabilities=sequence_success_probabilities,
+        average_success=average_success,
+        bootstrap_means=bootstrap_means,
+    )
+
