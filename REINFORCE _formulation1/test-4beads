@@ -1,0 +1,48 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from Functions import(laydowncoordinates, compute_A, M, Mhat, energy, valid_fold)
+from Functions import(generate_all_proposals, generate_legal_neighbors, barker, cost_per_sample, RL_trajectory, grad_expectedcost, update_beta, )
+
+
+
+Gamma = [1,0,0,1]       # HPPH
+# [P, P, H, P, H, P, P, P, P, H, P, H, H, P, H, P]
+d0 = [1, 1, 1 ]             
+
+beta = 0.1
+num_time_steps = 2
+num_independent_experiments = 500
+learning_rate = 0.3
+num_iterations = 1000
+
+beta_history = []
+cost_history = []
+
+for iteration in range(num_iterations):
+    #for each iteration, calculate gradient and update beta
+    costs, grad_beta = grad_expectedcost(d0, Gamma, beta, num_time_steps, num_independent_experiments)
+    beta = update_beta(beta, grad_beta, learning_rate)
+
+    beta_history.append(beta)
+    cost_history.append(np.mean(costs))
+
+    if iteration % 20 == 0:
+        print(f"Iter {iteration:4d}  beta={beta:8.4f}  avg cost={np.mean(costs):.4f}")
+
+print(f"Final beta = {beta:.4f}, final avg cost = {cost_history[-1]:.4f}")
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+axes[0].plot(beta_history, marker='o', markersize=2)
+axes[0].set_title("Evolution of beta")
+axes[0].set_xlabel("Iteration")
+axes[0].set_ylabel("beta")
+axes[0].grid(True)
+
+axes[1].plot(cost_history, marker='o', markersize=2)
+axes[1].set_title("Average Cost (Energy) Over Iterations")
+axes[1].set_xlabel("Iteration")
+axes[1].set_ylabel("Average Cost")
+axes[1].grid(True)
+
+plt.tight_layout()
+plt.show()
