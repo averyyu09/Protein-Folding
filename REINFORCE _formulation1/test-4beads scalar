@@ -3,16 +3,16 @@ import matplotlib.pyplot as plt
 from Functions import(laydowncoordinates, compute_A, M, Mhat, energy, valid_fold)
 from Functions import(generate_all_proposals, generate_legal_neighbors, barker, cost_per_sample, RL_trajectory, grad_expectedcost, update_beta, )
 
-
-
-Gamma = [1,0,0,1]       # HPPH
-# [P, P, H, P, H, P, P, P, P, H, P, H, H, P, H, P]
-d0 = [1, 1, 1 ]             
+H=1
+P=0
+Gamma = [P, P, H, P, H, P, P, P, P, H, P, H, H, P, H, P]       # HPPH
+# [P, P, H, P, H, P, P, P, P, H, P, H, H, P, H, P] #H, H, P, P, H, P, H 
+d0 = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]             
 
 beta = 0.1
-num_time_steps = 2
-num_independent_experiments = 500
-learning_rate = 0.3
+num_time_steps = 1000
+num_independent_experiments = 50
+learning_rate = 0.1
 num_iterations = 1000
 
 beta_history = []
