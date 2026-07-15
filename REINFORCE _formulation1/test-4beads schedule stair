@@ -6,14 +6,15 @@ from Functions import (generate_legal_neighbors, barker, cost_per_sample)
 def RL_trajectory_schedule(d0, Gamma, A, H, beta_schedule, num_time_steps):
     d = d0.copy()
     E_current = cost_per_sample(Gamma, A, H, d)
-    grad_logP = np.zeros(num_time_steps)   # one slot per time step, starts at 0
+    grad_logP = np.zeros(num_blocks)
 
     for t in range(num_time_steps):
         neighbors = generate_legal_neighbors(d)
         if len(neighbors) == 0:
             break
 
-        beta_t = beta_schedule[t]           # use THIS step's beta only
+        block = t // block_size
+        beta_t = beta_schedule[block]
         j = np.random.randint(len(neighbors))
         d_prime = neighbors[j]
         E_prime = cost_per_sample(Gamma, A, H, d_prime)
@@ -22,10 +23,10 @@ def RL_trajectory_schedule(d0, Gamma, A, H, beta_schedule, num_time_steps):
         A_accept = barker(deltaE, beta_t)
         u = np.random.uniform(0, 1)
         if u < A_accept:
-            grad_logP[t] = -deltaE / (1 + np.exp(-beta_t * deltaE))
+            grad_logP[block] += -deltaE / (1 + np.exp(-beta_t * deltaE))
             d, E_current = d_prime, E_prime
         else:
-            grad_logP[t] = deltaE / (1 + np.exp(beta_t * deltaE))
+            grad_logP[block] += deltaE / (1 + np.exp(beta_t * deltaE))
 
     return d, E_current, grad_logP
 
@@ -34,7 +35,7 @@ def grad_expectedcost_schedule(d0, Gamma, beta_schedule, num_time_steps, num_ind
     H = 1
     A = compute_A(Gamma)
     costs = np.zeros(num_independent_experiments)
-    grad_beta_schedule = np.zeros(num_time_steps)   # will hold the running sum, then average
+    grad_beta_schedule = np.zeros(num_blocks)
 
     for i in range(num_independent_experiments):
         d_final, E_final, grad_logP = RL_trajectory_schedule(d0, Gamma, A, H, beta_schedule, num_time_steps)
@@ -61,12 +62,14 @@ num_time_steps = 100
 num_independent_experiments = 50
 learning_rate = 0.1
 num_iterations = 1000
+block_size = 20
+num_blocks = num_time_steps // block_size
 
 cost_history = []
 schedule_snapshots = []
 snapshot_every = 100
 
-beta_schedule = np.full(num_time_steps, 0.1)  # initialize BEFORE the loop
+beta_schedule = np.full(num_blocks, 0.1)
 
 for iteration in range(num_iterations):
     costs, grad = grad_expectedcost_schedule(d0, Gamma, beta_schedule, num_time_steps, num_independent_experiments)
@@ -85,7 +88,7 @@ for iteration in range(num_iterations):
 plt.figure(figsize=(8, 5))
 for i, snap in enumerate(schedule_snapshots):
     alpha = 0.2 + 0.8 * (i / max(len(schedule_snapshots) - 1, 1))
-    plt.plot(snap, color='C0', alpha=alpha)
+    plt.plot(np.repeat(snap, block_size), color='C0', alpha=alpha)
 plt.xlabel("annealing step t")
 plt.ylabel("beta(t)")
 plt.title("Beta schedule evolution over training (lighter = earlier)")
@@ -94,8 +97,11 @@ plt.tight_layout()
 plt.show()
 
 # final schedule + cost convergence
+
+beta_full = np.repeat(beta_schedule, block_size)
+
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-axes[0].plot(beta_schedule, marker='o', markersize=2)
+axes[0].plot(beta_full, marker='o', markersize=2)
 axes[0].set_title("Final learned beta schedule")
 axes[0].set_xlabel("annealing step t")
 axes[0].set_ylabel("beta(t)")
