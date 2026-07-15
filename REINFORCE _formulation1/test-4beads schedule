@@ -1,26 +1,24 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from Functions import (laydowncoordinates, compute_A, M, Mhat, energy, valid_fold)
-from Functions import (generate_all_proposals, generate_legal_neighbors, barker,
-                        cost_per_sample, RL_trajectory, grad_expectedcost, update_beta)
+from Functions import (generate_all_proposals, generate_legal_neighbors, barker, cost_per_sample, RL_trajectory, grad_expectedcost, update_beta)
 
 
 def RL_trajectory_schedule(d0, Gamma, A, H, beta_schedule, num_time_steps):
+    #initialize 
     d = d0.copy()
     E_current = cost_per_sample(Gamma, A, H, d)
-    grad_logP = np.zeros(num_time_steps)  # per-step gradient, not a scalar
-
+    grad_logP = np.zeros(num_time_steps)  # vector of t zeroes
+    #at each mcmc step, choose a random move, accept or reject, and return the derivative of the log of P
     for t in range(num_time_steps):
         neighbors = generate_legal_neighbors(d)
         if len(neighbors) == 0:
             break
-
         beta_t = beta_schedule[t]
         j = np.random.randint(len(neighbors))
         d_prime = neighbors[j]
         E_prime = cost_per_sample(Gamma, A, H, d_prime)
         deltaE = E_prime - E_current
-
         A_accept = barker(deltaE, beta_t)
         u = np.random.uniform(0, 1)
         if u < A_accept:
@@ -29,21 +27,20 @@ def RL_trajectory_schedule(d0, Gamma, A, H, beta_schedule, num_time_steps):
             E_current = E_prime
         else:
             grad_logP[t] = deltaE / (1 + np.exp(beta_t * deltaE))
-
     return d, E_current, grad_logP
 
 
 def grad_expectedcost_schedule(d0, Gamma, beta_schedule, num_time_steps=1, num_independent_experiments=10):
+    #initialize matrix of the independent experiments with each time step 
     H = 1
     A = compute_A(Gamma)
     costs = np.zeros(num_independent_experiments)
     grad_matrix = np.zeros((num_independent_experiments, num_time_steps))
-
     for i in range(num_independent_experiments):
         d_final, E_final, grad_logP = RL_trajectory_schedule(d0, Gamma, A, H, beta_schedule, num_time_steps)
         costs[i] = E_final
         grad_matrix[i] = grad_logP
-
+    #instead of multiplying by a scalar, multiply by the vector
     baseline = np.mean(costs)
     grad_beta_schedule = np.mean((costs - baseline)[:, None] * grad_matrix, axis=0)
 
