@@ -55,14 +55,14 @@ def update_beta_schedule(beta_schedule, grad_beta_schedule, learning_rate):
 
 H = 1
 P = 0
-Gamma = [P, P, H, P, H, P, P, P, P, H, P, H, H, P, H, P]  # 16-bead sequence
-d0 = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+Gamma = [H,P,P,H]  # 4-bead sequence
+d0 = [1, 1, 1]
 
-num_time_steps = 100
-num_independent_experiments = 50
+num_time_steps = 30
+num_independent_experiments = 30
 learning_rate = 0.1
 num_iterations = 1000
-block_size = 20
+block_size = 6
 num_blocks = num_time_steps // block_size
 
 cost_history = []
