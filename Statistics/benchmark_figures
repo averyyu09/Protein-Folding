@@ -1,0 +1,244 @@
+"""
+bootstrap_schedule_comparison.py
+
+Bootstrap confidence intervals for simulated-annealing schedule comparison
+(mean final energy, and success probability), excluding REINFORCE.
+
+Reads the raw per-trial CSV produced by the benchmarking notebook -- the one
+with columns like "Linear_final", "Linear_best", "Geometric_final", etc.
+(one column pair per schedule, one row per trial, ragged columns padded
+with blank/NaN if trial counts differ).
+
+Outputs:
+    - <outdir>/bootstrap_ci_summary.csv     summary table of means + CIs
+    - <outdir>/final_energy_ci.png          bar chart, mean final energy +/- CI
+    - <outdir>/success_probability_ci.png   bar chart, success prob +/- CI
+    - <outdir>/final_energy_distributions.png   raw distributions per schedule
+
+Usage:
+    python bootstrap_schedule_comparison.py \
+        --input sa_benchmark_raw_trials.csv \
+        --outdir ./bootstrap_results \
+        --target -9 \
+        --n_boot 10000 \
+        --ci 95
+"""
+
+import argparse
+import os
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+plt.rcParams.update({
+    "axes.labelsize": 15,
+    "axes.titlesize": 16,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
+})
+
+
+# ----------------------------------------------------------------------
+# CONFIG -- edit these directly, then just run: python bootstrap_schedule_comparison.py
+# (command-line flags, if given, override these -- see parse_args() below)
+# ----------------------------------------------------------------------
+
+CONFIG = {
+    "input": r"C:\RMP project\Statistics\sa_benchmark_raw_trials.csv",   # path to your raw trials CSV
+    "outdir": r"C:\RMP project\Statistics\bootstrap_results",   # where to save the CSV + figures
+    "target": -9.0,                           # ground-state energy E*
+    "n_boot": 10000,                          # number of bootstrap resamples
+    "ci": 95.0,                               # confidence interval width (percent)
+    "seed": 0,                                # random seed, for reproducibility
+}
+
+
+# ----------------------------------------------------------------------
+# Bootstrap helpers
+# ----------------------------------------------------------------------
+
+def bootstrap_mean_ci(data, n_boot=10000, ci=95, seed=0):
+    """Vectorized bootstrap CI for the mean of `data`.
+    Returns (observed_mean, ci_lower, ci_upper, boot_means_array)."""
+    rng = np.random.default_rng(seed)
+    data = np.asarray(data, dtype=float)
+    data = data[~np.isnan(data)]
+    n = len(data)
+    if n == 0:
+        return np.nan, np.nan, np.nan, np.array([])
+
+    # draw all n_boot resamples at once: shape (n_boot, n)
+    idx = rng.integers(0, n, size=(n_boot, n))
+    boot_means = data[idx].mean(axis=1)
+
+    lower = np.percentile(boot_means, (100 - ci) / 2)
+    upper = np.percentile(boot_means, 100 - (100 - ci) / 2)
+    return data.mean(), lower, upper, boot_means
+
+
+def bootstrap_proportion_ci(data, target, n_boot=10000, ci=95, seed=0):
+    """Vectorized bootstrap CI for P(data == target).
+    Returns (observed_proportion, ci_lower, ci_upper, boot_props_array)."""
+    rng = np.random.default_rng(seed)
+    data = np.asarray(data, dtype=float)
+    data = data[~np.isnan(data)]
+    n = len(data)
+    if n == 0:
+        return np.nan, np.nan, np.nan, np.array([])
+
+    successes = (data == target).astype(float)
+    idx = rng.integers(0, n, size=(n_boot, n))
+    boot_props = successes[idx].mean(axis=1)
+
+    lower = np.percentile(boot_props, (100 - ci) / 2)
+    upper = np.percentile(boot_props, 100 - (100 - ci) / 2)
+    return successes.mean(), lower, upper, boot_props
+
+
+# ----------------------------------------------------------------------
+# Main
+# ----------------------------------------------------------------------
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--input", default=CONFIG["input"], help="path to raw trials CSV")
+    parser.add_argument("--outdir", default=CONFIG["outdir"], help="output directory")
+    parser.add_argument("--target", type=float, default=CONFIG["target"], help="ground-state energy E*")
+    parser.add_argument("--n_boot", type=int, default=CONFIG["n_boot"], help="number of bootstrap resamples")
+    parser.add_argument("--ci", type=float, default=CONFIG["ci"], help="confidence interval width (percent)")
+    parser.add_argument("--seed", type=int, default=CONFIG["seed"], help="random seed for reproducibility")
+    args = parser.parse_args()
+
+    os.makedirs(args.outdir, exist_ok=True)
+
+    df = pd.read_csv(args.input)
+
+    # identify schedule names from "<name>_final" columns, excluding anything
+    # REINFORCE-related (case-insensitive) per the request to compare only
+    # the non-learned schedules here
+    final_cols = [c for c in df.columns if c.endswith("_final")]
+    schedule_names = [
+        c[: -len("_final")] for c in final_cols
+        if "reinforce" not in c.lower()
+    ]
+    schedule_names.sort()
+
+    if not schedule_names:
+        raise ValueError(
+            "No non-REINFORCE '<name>_final' columns found. "
+            f"Columns present: {list(df.columns)}"
+        )
+
+    print(f"Found {len(schedule_names)} schedules: {schedule_names}")
+
+    # ------------------------------------------------------------------
+    # Run bootstrap for each schedule
+    # ------------------------------------------------------------------
+    rows = []
+    boot_mean_dists = {}
+    boot_prop_dists = {}
+    raw_final_energies = {}
+
+    for name in schedule_names:
+        final_col = f"{name}_final"
+        final_data = df[final_col].values
+
+        mean_E, mean_lo, mean_hi, boot_means = bootstrap_mean_ci(
+            final_data, n_boot=args.n_boot, ci=args.ci, seed=args.seed
+        )
+        prop, prop_lo, prop_hi, boot_props = bootstrap_proportion_ci(
+            final_data, args.target, n_boot=args.n_boot, ci=args.ci, seed=args.seed
+        )
+
+        rows.append({
+            "Schedule": name,
+            "N": int(np.sum(~np.isnan(final_data.astype(float)))),
+            "Mean Final Energy": mean_E,
+            f"CI Lower ({args.ci:.0f}%)": mean_lo,
+            f"CI Upper ({args.ci:.0f}%)": mean_hi,
+            "Success Probability": prop,
+            f"Success CI Lower ({args.ci:.0f}%)": prop_lo,
+            f"Success CI Upper ({args.ci:.0f}%)": prop_hi,
+        })
+
+        boot_mean_dists[name] = boot_means
+        boot_prop_dists[name] = boot_props
+        raw_final_energies[name] = final_data[~np.isnan(final_data.astype(float))]
+
+    summary = pd.DataFrame(rows).sort_values("Mean Final Energy", ascending=False).reset_index(drop=True)
+    summary_path = os.path.join(args.outdir, "bootstrap_ci_summary.csv")
+    summary.to_csv(summary_path, index=False)
+    print(f"\nSaved summary table to {summary_path}\n")
+    print(summary.to_string(index=False))
+
+    # ------------------------------------------------------------------
+    # Plot 1: mean final energy with bootstrap CI, sorted best to worst
+    # ------------------------------------------------------------------
+    order = summary["Schedule"].tolist()
+    means = summary["Mean Final Energy"].values
+    lo = summary[f"CI Lower ({args.ci:.0f}%)"].values
+    hi = summary[f"CI Upper ({args.ci:.0f}%)"].values
+    err_low = means - lo
+    err_high = hi - means
+
+    fig, ax = plt.subplots(figsize=(9, 5.5))
+    colors = plt.cm.viridis(np.linspace(0.15, 0.85, len(order)))
+    ax.bar(order, means, yerr=[err_low, err_high], capsize=5, color=colors, edgecolor="black")
+    ax.set_ylabel("Mean Final Energy")
+    ax.set_title(f"Mean Final Energy by Schedule ({args.ci:.0f}% bootstrap CI, n_boot={args.n_boot})")
+    ax.grid(True, axis="y", alpha=0.4)
+    plt.xticks(rotation=30, ha="right")
+    plt.tight_layout()
+    fig1_path = os.path.join(args.outdir, "final_energy_ci.svg")
+    plt.savefig(fig1_path, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved {fig1_path}")
+
+    # ------------------------------------------------------------------
+    # Plot 2: success probability with bootstrap CI, same schedule order
+    # ------------------------------------------------------------------
+    props = summary["Success Probability"].values
+    prop_lo = summary[f"Success CI Lower ({args.ci:.0f}%)"].values
+    prop_hi = summary[f"Success CI Upper ({args.ci:.0f}%)"].values
+    perr_low = props - prop_lo
+    perr_high = prop_hi - props
+
+    fig, ax = plt.subplots(figsize=(9, 5.5))
+    ax.bar(order, props, yerr=[perr_low, perr_high], capsize=5, color=colors, edgecolor="black")
+    ax.set_ylabel("Success Probability")
+    ax.set_title(f"Success Probability by Schedule ({args.ci:.0f}% bootstrap CI, n_boot={args.n_boot})")
+    ax.grid(True, axis="y", alpha=0.4)
+    ax.set_ylim(bottom=0)
+    plt.xticks(rotation=30, ha="right")
+    plt.tight_layout()
+    fig2_path = os.path.join(args.outdir, "success_probability_ci.svg")
+    plt.savefig(fig2_path, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved {fig2_path}")
+
+    # ------------------------------------------------------------------
+    # Plot 3: raw final-energy distributions per schedule (context for the CIs)
+    # ------------------------------------------------------------------
+    fig, ax = plt.subplots(figsize=(9, 5.5))
+    data_for_violin = [raw_final_energies[name] for name in order]
+    parts = ax.violinplot(data_for_violin, showmeans=True, showextrema=True)
+    for pc, c in zip(parts["bodies"], colors):
+        pc.set_facecolor(c)
+        pc.set_alpha(0.6)
+    ax.set_xticks(np.arange(1, len(order) + 1))
+    ax.set_xticklabels(order, rotation=30, ha="right")
+    ax.set_ylabel("Final Energy (raw trial distribution)")
+    ax.set_title("Distribution of Final Energies by Schedule")
+    ax.grid(True, axis="y", alpha=0.4)
+    plt.tight_layout()
+    fig3_path = os.path.join(args.outdir, "final_energy_distributions.svg")
+    plt.savefig(fig3_path, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved {fig3_path}")
+
+    print("\nDone.")
+
+
+if __name__ == "__main__":
+    main()
