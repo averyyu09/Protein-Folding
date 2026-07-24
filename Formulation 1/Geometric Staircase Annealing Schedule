@@ -1,11 +1,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
+plt.rcParams.update({
+    'figure.figsize': (8, 6),   # bigger canvas by default
+    'font.size': 14,            # base font size
+    'axes.labelsize': 18,       # x/y axis label size
+    'axes.titlesize': 18,       # title size
+    'xtick.labelsize': 14,      # x tick number size
+    'ytick.labelsize': 14,      # y tick number size
+    'legend.fontsize': 12,
+})
 from Functions import ( laydowncoordinates, compute_A,energy, propose_move, valid_fold, plot_results,plot_energy_uniquefolds,plot_uniquefolds_incontext)
 
 H = 1
 P = 0
-Gamma = [P, P, H, P, H, P, P, P, P, H, P, H, H, P, H, P]
+Gamma = Gamma =[H,P,H,P,P,H,H,P,H,P,P,H,P,H,H,P,P,H,P,H] 
 N = len(Gamma)
 
 d = np.zeros(N - 1, dtype=int)
@@ -26,7 +34,7 @@ uniquefold_energies =[]
 
 #edit these
 num_sweeps = 10000
-num_steps = 30
+num_steps = 20
 beta_steps = np.geomspace(0.1, 10, num_steps)
 #stairs
 step_size = int(np.ceil(num_sweeps / num_steps))
@@ -98,3 +106,12 @@ print("Best energy:", best_E)
 plot_results(energies, best_energies, coordinates,best_coordinates,Gamma,H,best_E,)
 plot_energy_uniquefolds(uniquefold_energies)
 plot_uniquefolds_incontext(which_sweeps,uniquefold_energies)
+
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.plot(np.arange(num_sweeps), beta, linewidth=2)
+ax.set_xlabel("Iteration", fontsize=18)
+ax.set_ylabel(r"$\beta$ (inverse temperature)", fontsize=18)
+ax.tick_params(labelsize=14)
+plt.tight_layout()
+plt.show()
